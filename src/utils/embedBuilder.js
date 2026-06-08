@@ -8,6 +8,17 @@ const {
 const partyState = require("../data/partyState");
 
 function buildPartyEmbed(party, client) {
+  if (!party || !party.roles) {
+    console.error("buildPartyEmbed received invalid party", party);
+    return new EmbedBuilder()
+      .setTitle("Error")
+      .setDescription("Party data is corrupted. Close and recreate the party.");
+  }
+
+
+
+
+
   const totalMembers = partyState.getTotalMembers();
   const missingRoles = partyState.getMissingImportantRoles();
   const roleLines = Object.entries(party.roles).map(([roleName, role]) => {
@@ -83,17 +94,14 @@ function getRoleDescription(role) {
 }
 
 function buildRemoveSelect(party) {
-  const userOptions = partyState.getUserOptions();
-
-  if (userOptions.length === 0) {
-    return null;
-  }
-
+  if (!party) return null;
+  const userOptions = partyState.getUserOptions(party);
+  if (!userOptions || userOptions.length === 0) return null;
   return new StringSelectMenuBuilder()
     .setCustomId("party:remove")
     .setPlaceholder("Leader: remove player")
     .addOptions(
-      userOptions.slice(0, 25).map((userId) => ({
+      userOptions.slice(0, 25).map(userId => ({
         label: `Remove ${userId}`,
         value: userId,
         description: "Removes this player from their slot or queue"
@@ -102,34 +110,17 @@ function buildRemoveSelect(party) {
 }
 
 function buildPartyComponents(party) {
+  if (!party) return [];
   const roleRow = new ActionRowBuilder().addComponents(buildRoleSelect(party));
-
   const buttonRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("party:leave")
-      .setLabel("Leave Party")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("party:refresh")
-      .setLabel("Refresh")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("party:promote")
-      .setLabel("Promote Queue")
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId("party:close")
-      .setLabel("Close Party")
-      .setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId("party:leave").setLabel("Leave Party").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("party:refresh").setLabel("Refresh").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("party:promote").setLabel("Promote Queue").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId("party:close").setLabel("Close Party").setStyle(ButtonStyle.Danger)
   );
-
   const rows = [roleRow, buttonRow];
   const removeSelect = buildRemoveSelect(party);
-
-  if (removeSelect) {
-    rows.push(new ActionRowBuilder().addComponents(removeSelect));
-  }
-
+  if (removeSelect) rows.push(new ActionRowBuilder().addComponents(removeSelect));
   return rows;
 }
 
