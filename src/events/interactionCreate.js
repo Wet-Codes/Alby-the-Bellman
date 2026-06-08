@@ -3,7 +3,7 @@ const partyState = require("../data/partyState");
 const { buildPartyEmbed, buildPartyComponents } = require("../utils/embedBuilder");
 
 async function refreshPartyMessage(interaction, publicMessage) {
-  const party = partyState.getParty();
+  const party = partyState.getParty(guildId);
 
   if (!party || !party.messageId || !party.threadId) {
     return;
@@ -33,18 +33,18 @@ function isLeader(interaction, party) {
 
 async function handleRoleSelect(interaction) {
   const roleName = interaction.values[0];
-  const result = partyState.joinRole(interaction.user.id, roleName);
+  const result = partyState.joinRole(guildId, interaction.user.id, roleName);
 
   await refreshPartyMessage(interaction, result.message);
 }
 
 async function handleLeave(interaction) {
-  const result = partyState.leaveParty(interaction.user.id);
+  const result = partyState.leaveParty(guildId, interaction.user.id);
   await refreshPartyMessage(interaction, result.message);
 }
 
 async function handleClose(interaction) {
-  const party = partyState.getParty();
+  const party = partyState.getParty(guildId);
 
   if (!isLeader(interaction, party)) {
     await interaction.reply({
@@ -64,7 +64,7 @@ async function handleClose(interaction) {
 }
 
 async function handlePromote(interaction) {
-  const party = partyState.getParty();
+  const party = partyState.getParty(guildId);
 
   if (!isLeader(interaction, party)) {
     await interaction.reply({
@@ -79,7 +79,7 @@ async function handlePromote(interaction) {
 }
 
 async function handleRemoveSelect(interaction) {
-  const party = partyState.getParty();
+  const party = partyState.getParty(guildId);
 
   if (!isLeader(interaction, party)) {
     await interaction.reply({
@@ -96,6 +96,15 @@ async function handleRemoveSelect(interaction) {
 
 module.exports = async function handleInteractionCreate(interaction) {
   try {
+
+    if (!interaction.guildId) {
+  if (interaction.isRepliable()) {
+    await interaction.reply({ content: "This bot only works in servers.", ephemeral: true });
+  }
+  return;
+}
+const guildId = interaction.guildId;
+
     if (interaction.guildId !== process.env.GUILD_ID) {
       if (interaction.isRepliable()) {
         await interaction.reply({
@@ -111,7 +120,7 @@ module.exports = async function handleInteractionCreate(interaction) {
       return;
     }
 
-    if (!partyState.hasActiveParty()) {
+    if (!partyState.hasActiveParty(guildId)) {
       if (interaction.isRepliable()) {
         await interaction.reply({
           content: "There is no active party right now.",

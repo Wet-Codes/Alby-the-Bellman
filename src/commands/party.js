@@ -20,7 +20,14 @@ const data = new SlashCommandBuilder()
   );
 
 async function execute(interaction) {
-  if (partyState.hasActiveParty()) {
+  const guildId = interaction.guildId;
+if (!guildId) {
+  await interaction.reply({ content: "This command can only be used in a server.", ephemeral: true });
+  return;
+}
+
+
+  if (partyState.hasActiveParty(guildId))  {
     await interaction.reply({
       content: "There is already an active party. Close it before creating a new one.",
       ephemeral: true
@@ -48,19 +55,19 @@ async function execute(interaction) {
     reason: "Albion party session created"
   });
 
-  const party = partyState.createParty({
+  const party = partyState.createParty({ 
+    guildId,
     leaderId: interaction.user.id,
-    activity,
+    activity, 
     template,
-    threadId: thread.id
-  });
+    threadId: thread.id })
 
   const message = await thread.send({
     embeds: [buildPartyEmbed(party, interaction.client)],
     components: buildPartyComponents(party)
   });
 
-  partyState.setMessageId(message.id);
+  partyState.setMessageId(guildId, message.id);
 
   await interaction.editReply(`Party created: ${thread}`);
 }

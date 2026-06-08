@@ -1,4 +1,4 @@
-let party = null;
+const parties = new Map(); // guildId -> party
 
 function buildRoles(template) {
   const roles = {};
@@ -27,25 +27,25 @@ function createParty({ leaderId, activity, template, threadId }) {
     messageId: "",
     threadId
   };
-
+  parties.set(guildId, party);
   return party;
 }
 
-function getParty() {
-  return party;
+function getParty(guildId) {
+  return parties.get(guildId) || null;
 }
 
-function hasActiveParty() {
+function hasActiveParty(guildId) {
+  const party = parties.get(guildId);
   return Boolean(party && party.active);
 }
 
-function setMessageId(messageId) {
-  if (party) {
-    party.messageId = messageId;
-  }
+function setMessageId(guildId, messageId) {
+  const party = parties.get(guildId);
+  if (party) party.messageId = messageId;
 }
 
-function getRoleEntryForUser(userId) {
+function getRoleEntryForUser(party, userId) {
   if (!party) {
     return null;
   }
@@ -63,7 +63,7 @@ function getRoleEntryForUser(userId) {
   return null;
 }
 
-function removeUserFromParty(userId) {
+function removeUserFromParty(party, userId) {
   const entry = getRoleEntryForUser(userId);
 
   if (!entry) {
@@ -80,7 +80,7 @@ function hasOpenSlot(role) {
   return role.limit === 0 || role.members.length < role.limit;
 }
 
-function promoteNextQueuedUser(roleName) {
+function promoteNextQueuedUser(party, roleName) {
   const role = party.roles[roleName];
 
   if (!role || !hasOpenSlot(role) || role.queue.length === 0) {
@@ -93,9 +93,11 @@ function promoteNextQueuedUser(roleName) {
   return promotedUserId;
 }
 
-function joinRole(userId, roleName) {
-  if (!hasActiveParty()) {
-    return { ok: false, message: "There is no active party." };
+function joinRole(guildId, userId, roleName) {
+  
+  const party = parties.get(guildId);
+  if (!party || !party.active) {
+    return { ok: false, message: "There is no active party in this server." };
   }
 
   const role = party.roles[roleName];
@@ -104,7 +106,7 @@ function joinRole(userId, roleName) {
     return { ok: false, message: "That role does not exist for this party." };
   }
 
-  const currentEntry = getRoleEntryForUser(userId);
+  const currentEntry = getRoleEntryForUser(party, userId);
 
   if (currentEntry && currentEntry.roleName === roleName) {
     const status = currentEntry.listName === "members" ? "already in" : "already queued for";
@@ -126,9 +128,10 @@ function joinRole(userId, roleName) {
   return { ok: true, message: `${formatRoleName(roleName)} is full, so you joined its queue.` };
 }
 
-function leaveParty(userId) {
-  if (!hasActiveParty()) {
-    return { ok: false, message: "There is no active party." };
+function leaveParty(guildId, userId) {
+   const party = parties.get(guildId);
+  if (!party || !party.active) {
+    return { ok: false, message: "There is no active party in this server." };
   }
 
   const removedEntry = removeUserFromParty(userId);
@@ -154,8 +157,9 @@ function leaveParty(userId) {
 }
 
 function promoteFirstQueuedUser() {
-  if (!hasActiveParty()) {
-    return { ok: false, message: "There is no active party." };
+   const party = parties.get(guildId);
+  if (!party || !party.active) {
+    return { ok: false, message: "There is no active party in this server." };
   }
 
   for (const roleName of Object.keys(party.roles)) {
@@ -173,11 +177,10 @@ function promoteFirstQueuedUser() {
 }
 
 function closeParty() {
-  if (party) {
-    party.active = false;
-  }
-
-  party = null;
+  function closeParty(guildId) {
+  parties.delete(guildId);
+}
+  
 }
 
 function getTotalMembers() {
